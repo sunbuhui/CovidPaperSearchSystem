@@ -19,6 +19,7 @@ def search_focus(df):
 # function to stem keyword list into a common base word
 # 将关键字列表提取词干成一个通用的基本词
 def stem_words(words):
+    # 基于Porter词干算法的词干器。纯规则算法
     stemmer = PorterStemmer()
     singles = []
     for w in words:
