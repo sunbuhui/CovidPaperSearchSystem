@@ -33,10 +33,10 @@ def search_dataframe(df, search_words):
     return df1
 
 
-# function analyze search results for relevance with word count / abstract length
+# 计算论文概要相关性的函数。
+# 得分 = 关键词出现的次数/概要的长度
+# 返回按照相关性得分降序排序后的dataframe。此时是以每一篇论文为单位
 def search_relevance(rel_df, search_words):
-    rel_df['score'] = ""
-    # rel_df.loc['score']= ""
     for index, row in rel_df.iterrows():
         abstract = row['abstract']
         result = abstract.split()
@@ -48,54 +48,44 @@ def search_relevance(rel_df, search_words):
         rel_score = score * final_score
         rel_df.loc[index, 'score'] = rel_score
     rel_df = rel_df.sort_values(by=['score'], ascending=False)
-    # rel_df= rel_df[rel_df['score'] > .01]
     return rel_df
 
 
-# function to get best sentences from the search results
+# 计算论文概要中句子相关性的函数。
 def get_sentences(df1, search_words):
-    df_table = pd.DataFrame(columns=["pub_date", "authors", "title", "excerpt", "rel_score"])
+    df_table = pd.DataFrame(columns=["pub_date", "authors", "link", "excerpt", "rel_score","title"])
     for index, row in df1.iterrows():
-        pub_sentence = ''
-        sentences_used = 0
-        # break apart the absracrt to sentence level
+        pub_sentence = ""
+        # 把概要拆分成句子们。
         sentences = row['abstract'].split('. ')
-        # loop through the sentences of the abstract
-        highligts = []
+        # 遍历句子们。
         for sentence in sentences:
-            # missing lets the system know if all the words are in the sentence
+            # missing中的每个1代表一个关键词不在句子中。
             missing = 0
-            # loop through the words of sentence
+            # 遍历搜索词，看它在不在句子里。
             for word in search_words:
-                # if keyword missing change missing variable
+                # 如果搜索词不在，missing++
                 if word not in sentence:
                     missing = 1
-                # if '%' in sentence:
-                # missing=missing-1
-            # after all sentences processed show the sentences not missing keywords
+            # 处理完所有句子后，显示没有缺少搜索关键词的句子
             if missing == 0 and len(sentence) < 1000 and sentence != '':
                 sentence = sentence.capitalize()
                 if sentence[len(sentence) - 1] != '.':
                     sentence = sentence + '.'
-                pub_sentence = pub_sentence + '<br><br>' + sentence
-        if pub_sentence != '':
-            sentence = pub_sentence
-            sentences_used = sentences_used + 1
+                pub_sentence = sentence
+        if pub_sentence != "":
             authors = row["authors"].split(" ")
             link = row['doi']
             title = row["title"]
             score = row["score"]
-            linka = 'https://doi.org/' + link
-            linkb = title
-            sentence = '<p fontsize=tiny" align="left">' + sentence + '</p>'
-            final_link = '<p align="left"><a href="{}">{}</a></p>'.format(linka, linkb)
-            to_append = [row['publish_time'], authors[0] + ' et al.', final_link, sentence, score]
+            link = 'https://doi.org/' + link
+            to_append = [row['publish_time'], authors[0] + ' et al.', link, pub_sentence, score,title]
             df_length = len(df_table)
             df_table.loc[df_length] = to_append
     return df_table
 
 
-################ main program ########################
+################ 主程序 ########################
 
 
 # 从CSV文件中加载元数据
@@ -105,7 +95,7 @@ df = df.drop_duplicates(subset='title', keep="first")
 df=df[df['publish_time'].str.contains('2020')]
 df["abstract"] = df["abstract"].str.lower()+df["title"].str.lower()
 df=search_focus(df)
-# list of lists of search terms
+# 列出问题
 questions = [
     ['Q: What is the range of incubation periods for the disease in humans?'],
     ['Q: How long are individuals are contagious?'],
@@ -139,7 +129,6 @@ questions = [
     ['Q: Effectiveness of personal protective equipment (PPE)?'],
     ['Q: What is the role of environment in transmission?']
 ]
-# search=[['incubation','period','range','mean','%']]
 search = [['incubation', 'period', 'range'],
           ['viral', 'shedding', 'duration'],
           ['asymptomatic', 'shedding'],
@@ -170,17 +159,16 @@ search = [['incubation', 'period', 'range'],
           ['protective', 'clothing'],
           ['transmission', 'routes']
           ]
-q = 0
 for search_words in search:
     search_words = stem_words(search_words)
 
     # 从过滤之后的数据中过滤那些abstract中不包含search_words的论文
     df1 = search_dataframe(df, search_words)
 
-    # analyze search results for relevance
+    # 计算每个摘要的相关性
     df1 = search_relevance(df1, search_words)
 
-    # get best sentences
+    # 计算最终得到的句子
     df_table = get_sentences(df1, search_words)
 
     length = df_table.shape[0]
@@ -192,5 +180,4 @@ for search_words in search:
 
     if length < 1:
         print("No reliable answer could be located in the literature")
-    q = q + 1
 print('done')
